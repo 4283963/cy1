@@ -1,0 +1,770 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>回流焊热传导模拟平台</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #f0f2f5;
+            color: #333;
+            padding: 20px;
+        }
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        h1 {
+            text-align: center;
+            color: #1a365d;
+            margin-bottom: 24px;
+            font-size: 28px;
+        }
+        .main-grid {
+            display: grid;
+            grid-template-columns: 380px 1fr;
+            gap: 24px;
+        }
+        .panel {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        }
+        .panel h2 {
+            font-size: 18px;
+            color: #1a365d;
+            margin-bottom: 16px;
+            border-bottom: 2px solid #e2e8f0;
+            padding-bottom: 8px;
+        }
+        .form-group {
+            margin-bottom: 14px;
+        }
+        .form-group label {
+            display: block;
+            font-size: 13px;
+            color: #555;
+            margin-bottom: 4px;
+            font-weight: 500;
+        }
+        .form-group input {
+            width: 100%;
+            padding: 8px 10px;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            font-size: 14px;
+            transition: border-color 0.2s;
+        }
+        .form-group input:focus {
+            outline: none;
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 3px rgba(59,130,246,0.1);
+        }
+        .zones-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 8px;
+            margin-bottom: 14px;
+        }
+        .zone-input {
+            text-align: center;
+        }
+        .zone-input label {
+            font-size: 11px;
+            color: #888;
+        }
+        .zone-input input {
+            padding: 6px;
+            text-align: center;
+            font-size: 13px;
+        }
+        .btn-group {
+            display: flex;
+            gap: 10px;
+            margin-top: 16px;
+        }
+        button {
+            flex: 1;
+            padding: 10px 16px;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .btn-primary {
+            background: #3b82f6;
+            color: white;
+        }
+        .btn-primary:hover {
+            background: #2563eb;
+        }
+        .btn-primary:disabled {
+            background: #93c5fd;
+            cursor: not-allowed;
+        }
+        .btn-success {
+            background: #10b981;
+            color: white;
+        }
+        .btn-success:hover {
+            background: #059669;
+        }
+        .btn-success:disabled {
+            background: #6ee7b7;
+            cursor: not-allowed;
+        }
+        .btn-secondary {
+            background: #6b7280;
+            color: white;
+        }
+        .btn-secondary:hover {
+            background: #4b5563;
+        }
+        .chart-container {
+            position: relative;
+            height: 420px;
+            margin-bottom: 20px;
+        }
+        canvas {
+            width: 100%;
+            height: 100%;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            background: #fafafa;
+        }
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 12px;
+            margin-bottom: 16px;
+        }
+        .stat-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 14px;
+            border-radius: 10px;
+            text-align: center;
+        }
+        .stat-card.green {
+            background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+        }
+        .stat-card.orange {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+        }
+        .stat-card.blue {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+        }
+        .stat-card .value {
+            font-size: 24px;
+            font-weight: 700;
+            margin-bottom: 4px;
+        }
+        .stat-card .label {
+            font-size: 12px;
+            opacity: 0.9;
+        }
+        .legend {
+            display: flex;
+            gap: 20px;
+            justify-content: center;
+            margin-top: 12px;
+            flex-wrap: wrap;
+        }
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 13px;
+        }
+        .legend-color {
+            width: 16px;
+            height: 3px;
+            border-radius: 2px;
+        }
+        .advanced-toggle {
+            cursor: pointer;
+            color: #3b82f6;
+            font-size: 13px;
+            margin-bottom: 12px;
+            user-select: none;
+        }
+        .advanced-panel {
+            display: none;
+            padding-top: 10px;
+            border-top: 1px dashed #e5e7eb;
+        }
+        .advanced-panel.show {
+            display: block;
+        }
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 20px;
+            color: #666;
+        }
+        .loading.show {
+            display: block;
+        }
+        .spinner {
+            display: inline-block;
+            width: 24px;
+            height: 24px;
+            border: 3px solid #e5e7eb;
+            border-top-color: #3b82f6;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            margin-right: 10px;
+            vertical-align: middle;
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        .status-badge {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+        .status-badge.good {
+            background: #d1fae5;
+            color: #065f46;
+        }
+        .status-badge.warn {
+            background: #fef3c7;
+            color: #92400e;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔥 回流焊热传导模拟与优化平台</h1>
+        
+        <div class="main-grid">
+            <div class="panel">
+                <h2>⚙️ 参数设置</h2>
+                
+                <div class="form-group">
+                    <label>链条速度 (m/s)</label>
+                    <input type="number" id="beltSpeed" value="0.015" step="0.001">
+                </div>
+                
+                <div class="form-group">
+                    <label>各温区设定温度 (°C)</label>
+                    <div class="zones-grid" id="zonesGrid"></div>
+                </div>
+
+                <div class="advanced-toggle" onclick="toggleAdvanced()">
+                    ▼ 高级参数设置
+                </div>
+                
+                <div class="advanced-panel" id="advancedPanel">
+                    <div class="form-group">
+                        <label>板材厚度 (m)</label>
+                        <input type="number" id="boardThickness" value="0.0016" step="0.0001">
+                    </div>
+                    <div class="form-group">
+                        <label>板材密度 (kg/m³)</label>
+                        <input type="number" id="boardDensity" value="1900" step="10">
+                    </div>
+                    <div class="form-group">
+                        <label>比热容 (J/kg·K)</label>
+                        <input type="number" id="specificHeat" value="1100" step="10">
+                    </div>
+                    <div class="form-group">
+                        <label>热导率 (W/m·K)</label>
+                        <input type="number" id="thermalCond" value="0.35" step="0.01">
+                    </div>
+                    <div class="form-group">
+                        <label>上表面对流系数 (W/m²·K)</label>
+                        <input type="number" id="hTop" value="25" step="1">
+                    </div>
+                    <div class="form-group">
+                        <label>下表面对流系数 (W/m²·K)</label>
+                        <input type="number" id="hBottom" value="15" step="1">
+                    </div>
+                    <div class="form-group">
+                        <label>初始温度 (°C)</label>
+                        <input type="number" id="initialTemp" value="25" step="1">
+                    </div>
+                    <div class="form-group">
+                        <label>总模拟时间 (s)</label>
+                        <input type="number" id="totalTime" value="300" step="10">
+                    </div>
+                </div>
+
+                <div class="btn-group">
+                    <button class="btn-primary" onclick="runSimulation()" id="simBtn">
+                        ▶ 运行模拟
+                    </button>
+                    <button class="btn-secondary" onclick="resetParams()">
+                        ↺ 重置
+                    </button>
+                </div>
+
+                <h2 style="margin-top: 24px;">🎯 工艺窗口</h2>
+                <div class="form-group">
+                    <label>峰值温度范围 (°C)</label>
+                    <div style="display: flex; gap: 8px;">
+                        <input type="number" id="peakMin" value="235" placeholder="最小">
+                        <input type="number" id="peakMax" value="250" placeholder="最大">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>200°C以上时间 (s)</label>
+                    <div style="display: flex; gap: 8px;">
+                        <input type="number" id="t200Min" value="30" placeholder="最小">
+                        <input type="number" id="t200Max" value="90" placeholder="最大">
+                    </div>
+                </div>
+
+                <h2 style="margin-top: 24px;">🔧 优化设置</h2>
+                <div class="form-group">
+                    <label>迭代次数</label>
+                    <input type="number" id="optIterations" value="200" step="10">
+                </div>
+                <div class="form-group">
+                    <label>初始温度 (SA)</label>
+                    <input type="number" id="optInitTemp" value="100" step="10">
+                </div>
+                <div class="form-group">
+                    <label>冷却速率</label>
+                    <input type="number" id="optCoolRate" value="0.95" step="0.01">
+                </div>
+                
+                <button class="btn-success" onclick="runOptimization()" id="optBtn" style="width: 100%; margin-top: 10px;">
+                    🚀 开始优化
+                </button>
+            </div>
+
+            <div>
+                <div class="panel">
+                    <h2>📈 温度曲线</h2>
+                    <div class="chart-container">
+                        <canvas id="tempChart"></canvas>
+                    </div>
+                    <div class="legend">
+                        <div class="legend-item">
+                            <div class="legend-color" style="background: #ef4444;"></div>
+                            <span>顶层温度</span>
+                        </div>
+                        <div class="legend-item">
+                            <div class="legend-color" style="background: #f59e0b;"></div>
+                            <span>中心温度</span>
+                        </div>
+                        <div class="legend-item">
+                            <div class="legend-color" style="background: #3b82f6;"></div>
+                            <span>底层温度</span>
+                        </div>
+                        <div class="legend-item">
+                            <div class="legend-color" style="background: #10b981; border-style: dashed;"></div>
+                            <span>炉腔温度</span>
+                        </div>
+                        <div class="legend-item">
+                            <div class="legend-color" style="background: rgba(239,68,68,0.15);"></div>
+                            <span>工艺窗口</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="panel" style="margin-top: 20px;">
+                    <h2>📊 模拟结果</h2>
+                    <div class="loading" id="loading">
+                        <span class="spinner"></span>
+                        <span id="loadingText">计算中...</span>
+                    </div>
+                    <div id="resultsArea" style="display: none;">
+                        <div class="stats-grid">
+                            <div class="stat-card">
+                                <div class="value" id="peakTemp">--</div>
+                                <div class="label">峰值温度 (°C)</div>
+                            </div>
+                            <div class="stat-card green">
+                                <div class="value" id="timeAbove200">--</div>
+                                <div class="label">200°C以上时间 (s)</div>
+                            </div>
+                            <div class="stat-card orange">
+                                <div class="value" id="rampUp">--</div>
+                                <div class="label">升温速率 (°C/min)</div>
+                            </div>
+                            <div class="stat-card blue">
+                                <div class="value" id="coolingRate">--</div>
+                                <div class="label">降温速率 (°C/min)</div>
+                            </div>
+                        </div>
+                        <div style="text-align: center;">
+                            <span class="status-badge" id="windowStatus">--</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="panel" style="margin-top: 20px; display: none;" id="optResultPanel">
+                    <h2>🏆 优化结果</h2>
+                    <div id="optResultContent"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = '';
+        let chartData = null;
+        let defaults = null;
+
+        async function init() {
+            try {
+                const res = await fetch(API_BASE + '/api/defaults');
+                defaults = await res.json();
+                buildZoneInputs(defaults.sim_params.zone_temps);
+            } catch (e) {
+                buildZoneInputs([100, 140, 170, 210, 245, 250, 200, 150]);
+            }
+            drawEmptyChart();
+        }
+
+        function buildZoneInputs(temps) {
+            const grid = document.getElementById('zonesGrid');
+            grid.innerHTML = '';
+            temps.forEach((temp, i) => {
+                const div = document.createElement('div');
+                div.className = 'zone-input';
+                div.innerHTML = `
+                    <label>温区${i + 1}</label>
+                    <input type="number" id="zone${i}" value="${temp}" step="1">
+                `;
+                grid.appendChild(div);
+            });
+        }
+
+        function getZoneTemps() {
+            const temps = [];
+            for (let i = 0; i < 8; i++) {
+                const el = document.getElementById(`zone${i}`);
+                if (el) temps.push(parseFloat(el.value) || 0);
+            }
+            return temps;
+        }
+
+        function toggleAdvanced() {
+            const panel = document.getElementById('advancedPanel');
+            panel.classList.toggle('show');
+        }
+
+        function showLoading(text = '计算中...') {
+            document.getElementById('loading').classList.add('show');
+            document.getElementById('loadingText').textContent = text;
+            document.getElementById('resultsArea').style.display = 'none';
+        }
+
+        function hideLoading() {
+            document.getElementById('loading').classList.remove('show');
+            document.getElementById('resultsArea').style.display = 'block';
+        }
+
+        async function runSimulation() {
+            const btn = document.getElementById('simBtn');
+            btn.disabled = true;
+            showLoading('热传导模拟计算中...');
+
+            try {
+                const params = collectSimParams();
+                const res = await fetch(API_BASE + '/api/simulate', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(params)
+                });
+                const data = await res.json();
+                
+                if (data.success) {
+                    chartData = data.result;
+                    drawChart(data.result);
+                    updateStats(data.result);
+                    hideLoading();
+                }
+            } catch (e) {
+                alert('模拟失败: ' + e.message);
+                document.getElementById('loading').classList.remove('show');
+            } finally {
+                btn.disabled = false;
+            }
+        }
+
+        function collectSimParams() {
+            return {
+                zone_temps: getZoneTemps(),
+                belt_speed: parseFloat(document.getElementById('beltSpeed').value),
+                board_thickness: parseFloat(document.getElementById('boardThickness').value),
+                board_density: parseFloat(document.getElementById('boardDensity').value),
+                board_specific_heat: parseFloat(document.getElementById('specificHeat').value),
+                board_thermal_conductivity: parseFloat(document.getElementById('thermalCond').value),
+                h_top: parseFloat(document.getElementById('hTop').value),
+                h_bottom: parseFloat(document.getElementById('hBottom').value),
+                initial_temp: parseFloat(document.getElementById('initialTemp').value),
+                total_time: parseFloat(document.getElementById('totalTime').value),
+            };
+        }
+
+        function updateStats(result) {
+            document.getElementById('peakTemp').textContent = result.peak_temp.toFixed(1);
+            document.getElementById('timeAbove200').textContent = result.time_above_200.toFixed(1);
+            document.getElementById('rampUp').textContent = result.ramp_up_rate.toFixed(2);
+            document.getElementById('coolingRate').textContent = result.cooling_rate.toFixed(2);
+
+            const peakMin = parseFloat(document.getElementById('peakMin').value);
+            const peakMax = parseFloat(document.getElementById('peakMax').value);
+            const t200Min = parseFloat(document.getElementById('t200Min').value);
+            const t200Max = parseFloat(document.getElementById('t200Max').value);
+
+            const inWindow = result.peak_temp >= peakMin && result.peak_temp <= peakMax &&
+                           result.time_above_200 >= t200Min && result.time_above_200 <= t200Max;
+            
+            const badge = document.getElementById('windowStatus');
+            if (inWindow) {
+                badge.textContent = '✓ 在工艺窗口内';
+                badge.className = 'status-badge good';
+            } else {
+                badge.textContent = '⚠ 超出工艺窗口';
+                badge.className = 'status-badge warn';
+            }
+        }
+
+        function drawEmptyChart() {
+            const canvas = document.getElementById('tempChart');
+            const ctx = canvas.getContext('2d');
+            canvas.width = canvas.offsetWidth * 2;
+            canvas.height = canvas.offsetHeight * 2;
+            ctx.scale(2, 2);
+            
+            ctx.fillStyle = '#fafafa';
+            ctx.fillRect(0, 0, canvas.offsetWidth, canvas.offsetHeight);
+            
+            ctx.fillStyle = '#999';
+            ctx.font = '14px sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText('点击"运行模拟"查看温度曲线', canvas.offsetWidth / 2, canvas.offsetHeight / 2);
+        }
+
+        function drawChart(result) {
+            const canvas = document.getElementById('tempChart');
+            const ctx = canvas.getContext('2d');
+            const w = canvas.offsetWidth;
+            const h = canvas.offsetHeight;
+            canvas.width = w * 2;
+            canvas.height = h * 2;
+            ctx.scale(2, 2);
+
+            const padL = 55, padR = 20, padT = 30, padB = 45;
+            const chartW = w - padL - padR;
+            const chartH = h - padT - padB;
+
+            const time = result.time;
+            const topTemp = result.top_temp;
+            const midTemp = result.mid_temp;
+            const botTemp = result.bot_temp;
+            const ambTemp = result.amb_temp;
+
+            const tMax = Math.max(...time);
+            const tempMax = Math.max(...topTemp, ...ambTemp) + 20;
+            const tempMin = 20;
+
+            ctx.fillStyle = '#fafafa';
+            ctx.fillRect(0, 0, w, h);
+
+            const peakMin = parseFloat(document.getElementById('peakMin').value);
+            const peakMax = parseFloat(document.getElementById('peakMax').value);
+            const y1 = padT + chartH * (1 - (peakMin - tempMin) / (tempMax - tempMin));
+            const y2 = padT + chartH * (1 - (peakMax - tempMin) / (tempMax - tempMin));
+            ctx.fillStyle = 'rgba(239, 68, 68, 0.08)';
+            ctx.fillRect(padL, y2, chartW, y1 - y2);
+
+            ctx.strokeStyle = '#e5e7eb';
+            ctx.lineWidth = 1;
+            for (let i = 0; i <= 5; i++) {
+                const y = padT + (chartH / 5) * i;
+                ctx.beginPath();
+                ctx.moveTo(padL, y);
+                ctx.lineTo(w - padR, y);
+                ctx.stroke();
+
+                const temp = tempMax - (tempMax - tempMin) * (i / 5);
+                ctx.fillStyle = '#666';
+                ctx.font = '11px sans-serif';
+                ctx.textAlign = 'right';
+                ctx.fillText(temp.toFixed(0) + '°C', padL - 8, y + 4);
+            }
+
+            for (let i = 0; i <= 5; i++) {
+                const x = padL + (chartW / 5) * i;
+                const t = (tMax / 5) * i;
+                ctx.fillStyle = '#666';
+                ctx.font = '11px sans-serif';
+                ctx.textAlign = 'center';
+                ctx.fillText(t.toFixed(0) + 's', x, h - padB + 20);
+            }
+
+            function plot(data, color, dashed = false, lineWidth = 2) {
+                ctx.strokeStyle = color;
+                ctx.lineWidth = lineWidth;
+                if (dashed) ctx.setLineDash([6, 4]);
+                ctx.beginPath();
+                for (let i = 0; i < data.length; i++) {
+                    const x = padL + (time[i] / tMax) * chartW;
+                    const y = padT + chartH * (1 - (data[i] - tempMin) / (tempMax - tempMin));
+                    if (i === 0) ctx.moveTo(x, y);
+                    else ctx.lineTo(x, y);
+                }
+                ctx.stroke();
+                ctx.setLineDash([]);
+            }
+
+            plot(ambTemp, '#10b981', true, 1.5);
+            plot(topTemp, '#ef4444');
+            plot(midTemp, '#f59e0b');
+            plot(botTemp, '#3b82f6');
+
+            ctx.strokeStyle = '#374151';
+            ctx.lineWidth = 1;
+            ctx.strokeRect(padL, padT, chartW, chartH);
+
+            ctx.fillStyle = '#333';
+            ctx.font = 'bold 12px sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText('时间 (s)', w / 2, h - 10);
+
+            ctx.save();
+            ctx.translate(16, h / 2);
+            ctx.rotate(-Math.PI / 2);
+            ctx.fillText('温度 (°C)', 0, 0);
+            ctx.restore();
+
+            const peakY = padT + chartH * (1 - (result.peak_temp - tempMin) / (tempMax - tempMin));
+            const peakIdx = midTemp.indexOf(result.peak_temp);
+            const peakX = padL + (time[peakIdx] / tMax) * chartW;
+            
+            ctx.fillStyle = '#ef4444';
+            ctx.beginPath();
+            ctx.arc(peakX, peakY, 4, 0, Math.PI * 2);
+            ctx.fill();
+            
+            ctx.fillStyle = '#333';
+            ctx.font = '11px sans-serif';
+            ctx.textAlign = 'left';
+            ctx.fillText(`峰值: ${result.peak_temp.toFixed(1)}°C`, peakX + 8, peakY - 5);
+        }
+
+        async function runOptimization() {
+            const btn = document.getElementById('optBtn');
+            btn.disabled = true;
+            showLoading('模拟退火优化中，请稍候...');
+
+            try {
+                const req = {
+                    base_zone_temps: getZoneTemps(),
+                    base_belt_speed: parseFloat(document.getElementById('beltSpeed').value),
+                    process_window: {
+                        peak_temp_min: parseFloat(document.getElementById('peakMin').value),
+                        peak_temp_max: parseFloat(document.getElementById('peakMax').value),
+                        time_above_200_min: parseFloat(document.getElementById('t200Min').value),
+                        time_above_200_max: parseFloat(document.getElementById('t200Max').value),
+                    },
+                    optimizer_config: {
+                        num_iterations: parseInt(document.getElementById('optIterations').value),
+                        initial_temp: parseFloat(document.getElementById('optInitTemp').value),
+                        cooling_rate: parseFloat(document.getElementById('optCoolRate').value),
+                    }
+                };
+
+                const res = await fetch(API_BASE + '/api/optimize', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(req)
+                });
+                const data = await res.json();
+
+                if (data.success) {
+                    const opt = data.result;
+                    
+                    const bestTemps = opt.best_params.zone_temps;
+                    for (let i = 0; i < bestTemps.length && i < 8; i++) {
+                        const el = document.getElementById(`zone${i}`);
+                        if (el) el.value = bestTemps[i].toFixed(1);
+                    }
+                    document.getElementById('beltSpeed').value = opt.best_params.belt_speed.toFixed(4);
+
+                    chartData = opt.best_result;
+                    drawChart(opt.best_result);
+                    updateStats(opt.best_result);
+                    hideLoading();
+
+                    const panel = document.getElementById('optResultPanel');
+                    panel.style.display = 'block';
+                    document.getElementById('optResultContent').innerHTML = `
+                        <div style="background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; padding: 16px;">
+                            <div style="font-weight: 600; color: #065f46; margin-bottom: 10px;">
+                                ${opt.within_window ? '✅ 找到满足工艺窗口的最优解' : '⚠️ 未完全满足工艺窗口，已给出最佳近似'}
+                            </div>
+                            <div style="font-size: 13px; line-height: 1.8;">
+                                <div>最优温区设定: ${bestTemps.map(t => t.toFixed(1) + '°C').join(', ')}</div>
+                                <div>链条速度: ${opt.best_params.belt_speed.toFixed(4)} m/s</div>
+                                <div>目标函数值: ${opt.best_cost.toFixed(2)}</div>
+                                <div>迭代次数: ${opt.history.length - 1}</div>
+                            </div>
+                        </div>
+                    `;
+                }
+            } catch (e) {
+                alert('优化失败: ' + e.message);
+                document.getElementById('loading').classList.remove('show');
+            } finally {
+                btn.disabled = false;
+            }
+        }
+
+        function resetParams() {
+            if (defaults) {
+                const p = defaults.sim_params;
+                buildZoneInputs(p.zone_temps);
+                document.getElementById('beltSpeed').value = p.belt_speed;
+                document.getElementById('boardThickness').value = p.board_thickness;
+                document.getElementById('boardDensity').value = p.board_density;
+                document.getElementById('specificHeat').value = p.board_specific_heat;
+                document.getElementById('thermalCond').value = p.board_thermal_conductivity;
+                document.getElementById('hTop').value = p.h_top;
+                document.getElementById('hBottom').value = p.h_bottom;
+                document.getElementById('initialTemp').value = p.initial_temp;
+                document.getElementById('totalTime').value = p.total_time;
+
+                const w = defaults.process_window;
+                document.getElementById('peakMin').value = w.peak_temp_min;
+                document.getElementById('peakMax').value = w.peak_temp_max;
+                document.getElementById('t200Min').value = w.time_above_200_min;
+                document.getElementById('t200Max').value = w.time_above_200_max;
+
+                const o = defaults.optimizer_config;
+                document.getElementById('optIterations').value = o.num_iterations;
+                document.getElementById('optInitTemp').value = o.initial_temp;
+                document.getElementById('optCoolRate').value = o.cooling_rate;
+            }
+            drawEmptyChart();
+            document.getElementById('resultsArea').style.display = 'none';
+            document.getElementById('optResultPanel').style.display = 'none';
+        }
+
+        window.addEventListener('resize', () => {
+            if (chartData) drawChart(chartData);
+            else drawEmptyChart();
+        });
+
+        init();
+    </script>
+</body>
+</html>
