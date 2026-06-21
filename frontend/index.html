@@ -243,6 +243,104 @@
             background: #fef3c7;
             color: #92400e;
         }
+        .btn-save-recipe {
+            width: 100%;
+            padding: 16px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: 700;
+            cursor: pointer;
+            margin-top: 16px;
+            transition: all 0.2s;
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+        }
+        .btn-save-recipe:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 16px rgba(102, 126, 234, 0.4);
+        }
+        .btn-save-recipe:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+        .modal-overlay.show {
+            display: flex;
+        }
+        .modal {
+            background: white;
+            border-radius: 12px;
+            padding: 24px;
+            width: 90%;
+            max-width: 500px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        }
+        .modal h3 {
+            font-size: 20px;
+            color: #1a365d;
+            margin-bottom: 16px;
+        }
+        .modal .form-group {
+            margin-bottom: 16px;
+        }
+        .modal label {
+            display: block;
+            font-size: 13px;
+            color: #555;
+            margin-bottom: 6px;
+            font-weight: 500;
+        }
+        .modal input, .modal textarea {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            font-size: 14px;
+            font-family: inherit;
+        }
+        .modal textarea {
+            resize: vertical;
+            min-height: 80px;
+        }
+        .modal-buttons {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+        }
+        .modal-buttons button {
+            flex: 1;
+            padding: 10px 16px;
+            border-radius: 8px;
+            font-weight: 600;
+        }
+        .recipe-preview {
+            background: #1e293b;
+            color: #e2e8f0;
+            padding: 16px;
+            border-radius: 8px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            line-height: 1.5;
+            white-space: pre-wrap;
+            overflow-x: auto;
+            margin-top: 16px;
+            max-height: 300px;
+            overflow-y: auto;
+        }
     </style>
 </head>
 <body>
@@ -410,7 +508,29 @@
                 <div class="panel" style="margin-top: 20px; display: none;" id="optResultPanel">
                     <h2>🏆 优化结果</h2>
                     <div id="optResultContent"></div>
+                    <button class="btn-save-recipe" id="saveRecipeBtn" onclick="openSaveModal()">
+                        💾 保存此配方到工艺文件
+                    </button>
                 </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="saveModal">
+        <div class="modal">
+            <h3>💾 保存工艺配方</h3>
+            <div class="form-group">
+                <label>配方名称</label>
+                <input type="text" id="recipeName" placeholder="例如：SAC305_无铅制程_v1">
+            </div>
+            <div class="form-group">
+                <label>备注说明（可选）</label>
+                <textarea id="recipeNotes" placeholder="例如：针对0402元件、无铅焊膏、双面板..."></textarea>
+            </div>
+            <div id="recipePreview" class="recipe-preview" style="display: none;"></div>
+            <div class="modal-buttons">
+                <button class="btn-secondary" onclick="closeSaveModal()">取消</button>
+                <button class="btn-primary" id="confirmSaveBtn" onclick="confirmSaveRecipe()">确认保存</button>
             </div>
         </div>
     </div>
@@ -419,6 +539,7 @@
         const API_BASE = '';
         let chartData = null;
         let defaults = null;
+        let currentOptResult = null;
 
         async function init() {
             try {
@@ -693,6 +814,12 @@
                 if (data.success) {
                     const opt = data.result;
                     
+                    currentOptResult = {
+                        best_params: opt.best_params,
+                        best_result: opt.best_result,
+                        process_window: req.process_window,
+                    };
+                    
                     const bestTemps = opt.best_params.zone_temps;
                     for (let i = 0; i < bestTemps.length && i < 8; i++) {
                         const el = document.getElementById(`zone${i}`);
@@ -757,6 +884,77 @@
             drawEmptyChart();
             document.getElementById('resultsArea').style.display = 'none';
             document.getElementById('optResultPanel').style.display = 'none';
+            currentOptResult = null;
+        }
+
+        function openSaveModal() {
+            if (!currentOptResult) {
+                alert('请先运行优化获取结果');
+                return;
+            }
+            const now = new Date();
+            const defaultName = '回流焊配方_' + now.getFullYear() + 
+                String(now.getMonth() + 1).padStart(2, '0') + 
+                String(now.getDate()).padStart(2, '0');
+            document.getElementById('recipeName').value = defaultName;
+            document.getElementById('recipeNotes').value = '';
+            document.getElementById('recipePreview').style.display = 'none';
+            document.getElementById('saveModal').classList.add('show');
+        }
+
+        function closeSaveModal() {
+            document.getElementById('saveModal').classList.remove('show');
+            document.getElementById('confirmSaveBtn').disabled = false;
+        }
+
+        async function confirmSaveRecipe() {
+            const recipeName = document.getElementById('recipeName').value.trim();
+            const notes = document.getElementById('recipeNotes').value.trim();
+            
+            if (!recipeName) {
+                alert('请输入配方名称');
+                return;
+            }
+
+            const btn = document.getElementById('confirmSaveBtn');
+            btn.disabled = true;
+            btn.textContent = '保存中...';
+
+            try {
+                const req = {
+                    recipe_name: recipeName,
+                    zone_temps: currentOptResult.best_params.zone_temps,
+                    belt_speed: currentOptResult.best_params.belt_speed,
+                    sim_result: currentOptResult.best_result,
+                    process_window: currentOptResult.process_window,
+                    notes: notes
+                };
+
+                const res = await fetch(API_BASE + '/api/recipes/save', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(req)
+                });
+
+                const data = await res.json();
+
+                if (data.success) {
+                    document.getElementById('recipePreview').textContent = data.recipe_preview;
+                    document.getElementById('recipePreview').style.display = 'block';
+                    btn.textContent = '✅ 保存成功！';
+                    
+                    setTimeout(() => {
+                        closeSaveModal();
+                        alert('配方已保存到：' + data.filename);
+                    }, 1500);
+                } else {
+                    throw new Error(data.detail || '保存失败');
+                }
+            } catch (e) {
+                alert('保存失败: ' + e.message);
+                btn.disabled = false;
+                btn.textContent = '确认保存';
+            }
         }
 
         window.addEventListener('resize', () => {

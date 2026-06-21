@@ -11,6 +11,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from thermal_sim import ThermalSimulator, SimParams
 from optimizer import SimulatedAnnealingOptimizer, ProcessWindow, OptimizerConfig
+from recipe_manager import save_recipe, list_recipes, get_recipe
 
 app = FastAPI(title="回流焊热传导模拟平台", version="1.0.0")
 
@@ -48,6 +49,15 @@ class OptimizeRequest(BaseModel):
     zone_lengths: Optional[List[float]] = None
     process_window: Optional[dict] = None
     optimizer_config: Optional[dict] = None
+
+
+class SaveRecipeRequest(BaseModel):
+    recipe_name: str
+    zone_temps: List[float]
+    belt_speed: float
+    sim_result: dict
+    process_window: dict
+    notes: Optional[str] = ""
 
 
 def build_sim_params(req: SimulateRequest) -> SimParams:
@@ -194,6 +204,59 @@ async def optimize(req: OptimizeRequest):
     except Exception as e:
         import traceback
         traceback.print_exc()
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/recipes/save")
+async def save_recipe_api(req: SaveRecipeRequest):
+    try:
+        if not req.recipe_name or not req.recipe_name.strip():
+            raise HTTPException(status_code=400, detail="配方名称不能为空")
+        if not req.zone_temps or len(req.zone_temps) == 0:
+            raise HTTPException(status_code=400, detail="温区温度参数不能为空")
+
+        result = save_recipe(
+            recipe_name=req.recipe_name.strip(),
+            zone_temps=req.zone_temps,
+            belt_speed=req.belt_speed,
+            sim_result=req.sim_result,
+            process_window=req.process_window,
+            notes=req.notes or ""
+        )
+        return result
+    except HTTPException:
+        raise
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/recipes")
+async def list_recipes_api():
+    try:
+        recipes = list_recipes()
+        return {
+            "success": True,
+            "recipes": recipes,
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/recipes/{filename}")
+async def get_recipe_api(filename: str):
+    try:
+        recipe = get_recipe(filename)
+        if recipe is None:
+            raise HTTPException(status_code=404, detail="配方文件不存在")
+        return {
+            "success": True,
+            "recipe": recipe,
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
 
